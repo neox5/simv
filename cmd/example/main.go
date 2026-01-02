@@ -17,32 +17,22 @@ func main() {
 	// Create random source
 	randomSrc := source.NewRandomIntSource(clk, 1, 10)
 
-	// Create two values using the same random source:
-	// 1. Direct random value (no transform)
-	randomValue := value.New(randomSrc)
+	// Create accumulated value
+	accumulated := value.New(randomSrc, transform.NewAccumulate[int]())
 
-	// 2. Accumulated random value
-	accumulatedValue := value.New(
-		randomSrc,
-		transform.NewAccumulate[int](),
-	)
+	// Create reset-on-read value (cloned from accumulated)
+	resetOnRead := value.NewResetOnRead(accumulated.Clone(), 0)
 
 	// Start clock
 	clk.Start()
 	defer clk.Stop()
 
 	// Read and print every 500ms
-	for i := range 20 {
-		fmt.Printf("Random: %d, Accumulated: %d\n",
-			randomValue.Value(),
-			accumulatedValue.Value(),
+	for range 20 {
+		fmt.Printf("Accumulated: %d, ResetOnRead: %d\n",
+			accumulated.Value(),
+			resetOnRead.Value(),
 		)
-
-		// Reset accumulation at iteration 10
-		if i == 10 {
-			fmt.Println("→ RESET")
-			accumulatedValue.Reset(0)
-		}
 
 		time.Sleep(500 * time.Millisecond)
 	}
