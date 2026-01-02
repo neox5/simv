@@ -4,7 +4,7 @@ import (
 	"math/rand/v2"
 	"sync"
 
-	"github.com/neox5/simval/internal/clock"
+	"github.com/neox5/simval/clock"
 )
 
 // RandomIntSource generates random integers within a range [min, max].

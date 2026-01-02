@@ -3,7 +3,7 @@ package value
 import (
 	"sync"
 
-	"github.com/neox5/simval/internal/transform"
+	"github.com/neox5/simval/transform"
 )
 
 // SimpleValue is a standard implementation with source and transforms.

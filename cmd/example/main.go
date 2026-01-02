@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/neox5/simval/internal/clock"
-	"github.com/neox5/simval/internal/source"
-	"github.com/neox5/simval/internal/transform"
-	"github.com/neox5/simval/internal/value"
+	"github.com/neox5/simval/clock"
+	"github.com/neox5/simval/source"
+	"github.com/neox5/simval/transform"
+	"github.com/neox5/simval/value"
 )
 
 func main() {
