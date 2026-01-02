@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/neox5/synthetic/internal/counter"
+	"github.com/neox5/simval/internal/counter"
 )
 
 func main() {
