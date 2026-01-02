@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Create clock
-	clk := clock.NewPeriodicClock(100 * time.Millisecond)
+	clk := clock.NewPeriodicClock(500 * time.Millisecond)
 
 	// Create random source
 	randomSrc := source.NewRandomIntSource(clk, 1, 10)
@@ -24,7 +24,7 @@ func main() {
 	// 2. Accumulated random value
 	accumulatedValue := value.New(
 		randomSrc,
-		transform.NewAccumulateTransform[int](),
+		transform.NewAccumulate[int](),
 	)
 
 	// Start clock
@@ -32,11 +32,18 @@ func main() {
 	defer clk.Stop()
 
 	// Read and print every 500ms
-	for range 10 {
+	for i := range 20 {
 		fmt.Printf("Random: %d, Accumulated: %d\n",
 			randomValue.Value(),
 			accumulatedValue.Value(),
 		)
+
+		// Reset accumulation at iteration 10
+		if i == 10 {
+			fmt.Println("→ RESET")
+			accumulatedValue.Reset(0)
+		}
+
 		time.Sleep(500 * time.Millisecond)
 	}
 }

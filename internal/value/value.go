@@ -40,17 +40,24 @@ func (v *Value[T]) run() {
 	sourceChan := v.source.Subscribe()
 
 	for sourceValue := range sourceChan {
-		// Apply transforms
+		v.mu.Lock()
+
 		transformed := sourceValue
 		for _, t := range v.transforms {
-			transformed = t.Apply(transformed)
+			transformed = t.Apply(transformed, v)
 		}
 
-		// Store result
-		v.mu.Lock()
 		v.current = transformed
+
 		v.mu.Unlock()
 	}
+}
+
+// GetState returns the current state.
+// Implements transform.State[T].
+// Must be called with lock held (from within run()).
+func (v *Value[T]) GetState() T {
+	return v.current
 }
 
 // Value returns the current value.
@@ -58,4 +65,11 @@ func (v *Value[T]) Value() T {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 	return v.current
+}
+
+// Reset sets the current value to resetValue.
+func (v *Value[T]) Reset(resetValue T) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.current = resetValue
 }
