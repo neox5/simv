@@ -14,13 +14,18 @@ func main() {
 	// Create clock
 	clk := clock.NewPeriodicClock(100 * time.Millisecond)
 
-	// Create counter: constant source of 1 + accumulate transform
-	counter := value.New(
-		clk,
-		source.NewConstSource(1),
+	// Create random source
+	randomSrc := source.NewRandomIntSource(clk, 1, 10)
+
+	// Create two values using the same random source:
+	// 1. Direct random value (no transform)
+	randomValue := value.New(randomSrc)
+
+	// 2. Accumulated random value
+	accumulatedValue := value.New(
+		randomSrc,
 		transform.NewAccumulateTransform[int](),
 	)
-	defer counter.Stop()
 
 	// Start clock
 	clk.Start()
@@ -28,7 +33,10 @@ func main() {
 
 	// Read and print every 500ms
 	for range 10 {
-		fmt.Printf("Counter value: %d\n", counter.Value())
+		fmt.Printf("Random: %d, Accumulated: %d\n",
+			randomValue.Value(),
+			accumulatedValue.Value(),
+		)
 		time.Sleep(500 * time.Millisecond)
 	}
 }
