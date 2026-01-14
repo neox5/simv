@@ -1,6 +1,10 @@
 package value
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/neox5/simv/transform"
+)
 
 // ResetOnRead wraps a value and resets it on each read.
 type ResetOnRead[T any] struct {
@@ -30,6 +34,12 @@ func (v *ResetOnRead[T]) Value() T {
 // Clone creates a new ResetOnRead with cloned inner value.
 func (v *ResetOnRead[T]) Clone() Value[T] {
 	return NewResetOnRead(v.inner.Clone(), v.resetValue)
+}
+
+// WithTransforms extends inner value's transforms and wraps result.
+func (v *ResetOnRead[T]) WithTransforms(tfs ...transform.Transformation[T]) Value[T] {
+	extended := v.inner.WithTransforms(tfs...)
+	return NewResetOnRead(extended, v.resetValue)
 }
 
 // SetState sets the reset value (updates what value resets to).

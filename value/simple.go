@@ -98,6 +98,15 @@ func (v *SimpleValue[T]) Clone() Value[T] {
 	return New(v.source, v.transforms...)
 }
 
+// WithTransforms creates a new SimpleValue with extended transform chain.
+// Original value is unchanged.
+func (v *SimpleValue[T]) WithTransforms(tfs ...transform.Transformation[T]) Value[T] {
+	extended := make([]transform.Transformation[T], len(v.transforms)+len(tfs))
+	copy(extended, v.transforms)
+	copy(extended[len(v.transforms):], tfs)
+	return New(v.source, extended...)
+}
+
 // SetState directly sets the current state (bypasses transforms).
 func (v *SimpleValue[T]) SetState(state T) {
 	v.mu.Lock()
