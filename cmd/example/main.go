@@ -23,13 +23,20 @@ func main() {
 	randomSrc := source.NewRandomIntSource(clk, 1, 10)
 
 	// Create accumulated value
-	accumulated := value.New(randomSrc, transform.NewAccumulate[int]())
+	accumulated := value.New(randomSrc).
+		AddTransform(transform.NewAccumulate[int]())
 
-	// Create reset-on-read value (cloned from accumulated)
-	resetOnRead := value.NewResetOnRead(accumulated.Clone(), 0)
+	// Create reset-on-read value (same source, independent state)
+	resetOnRead := value.New(randomSrc).
+		AddTransform(transform.NewAccumulate[int]()).
+		EnableResetOnRead(0).
+		SetUpdateHook(value.NewDefaultTraceHook[int]())
 
-	// Enable tracing with default formatter
-	resetOnRead.SetUpdateHook(value.NewDefaultTraceHook[int]())
+	// Start values (configuration locked after this)
+	accumulated.Start()
+	resetOnRead.Start()
+	defer accumulated.Stop()
+	defer resetOnRead.Stop()
 
 	// Start clock
 	clk.Start()
@@ -60,10 +67,17 @@ func main() {
 		sourceStats.SubscriberCount,
 	)
 
-	valueStats := resetOnRead.Stats()
-	fmt.Printf("Value: updates=%d current=%d transforms=%d\n",
-		valueStats.UpdateCount,
-		valueStats.CurrentValue,
-		valueStats.TransformCount,
+	accumulatedStats := accumulated.Stats()
+	fmt.Printf("Accumulated: updates=%d current=%d transforms=%d\n",
+		accumulatedStats.UpdateCount,
+		accumulatedStats.CurrentValue,
+		accumulatedStats.TransformCount,
+	)
+
+	resetStats := resetOnRead.Stats()
+	fmt.Printf("ResetOnRead: updates=%d current=%d transforms=%d\n",
+		resetStats.UpdateCount,
+		resetStats.CurrentValue,
+		resetStats.TransformCount,
 	)
 }

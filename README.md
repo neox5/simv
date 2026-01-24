@@ -48,25 +48,26 @@ func main() {
     // Create source that generates random integers [1, 10]
     src := source.NewRandomIntSource(clk, 1, 10)
 
-    // Create value that accumulates incoming values
-    val := value.New(src, transform.NewAccumulate[int]())
+    // Create value with accumulate transform and reset-on-read
+    val := value.New(src).
+        AddTransform(transform.NewAccumulate[int]()).
+        EnableResetOnRead(0).
+        SetUpdateHook(value.NewDefaultTraceHook[int]())
 
-    // Wrap with reset-on-read behavior
-    resetVal := value.NewResetOnRead(val.Clone(), 0)
-
-    // Enable trace output
-    resetVal.SetUpdateHook(value.NewDefaultTraceHook[int]())
+    // Start the value (locks configuration)
+    val.Start()
+    defer val.Stop()
 
     // Start the clock
     clk.Start()
     defer clk.Stop()
 
-    // Read current value
-    current := resetVal.Value()
+    // Read current value (resets to 0 after read)
+    current := val.Value()
     fmt.Printf("Current value: %d\n", current)
 
     // Access metrics without side effects
-    stats := resetVal.Stats()
+    stats := val.Stats()
     fmt.Printf("Updates: %d, Current: %d\n",
         stats.UpdateCount,
         stats.CurrentValue,
@@ -138,22 +139,26 @@ Applies operations to incoming values.
 
 ```go
 // Running total
-accumulated := value.New(src, transform.NewAccumulate[int]())
+val.AddTransform(transform.NewAccumulate[int]())
 ```
 
 ### Value
 
-Thread-safe value management with optional behaviors.
+Thread-safe value management with configurable behaviors.
 
 ```go
-// Standard value
-val := value.New(src)
+// Create value (configuration phase)
+val := value.New(src).
+    AddTransform(transform.NewAccumulate[int]()).
+    EnableResetOnRead(0).
+    SetUpdateHook(value.NewDefaultTraceHook[int]())
 
-// Reset on each read
-resetVal := value.NewResetOnRead(val.Clone(), 0)
+// Start value (locks configuration, begins updates)
+val.Start()
+defer val.Stop()
 
-// Enable tracing
-val.SetUpdateHook(value.NewDefaultTraceHook[int]())
+// Read value
+current := val.Value()
 
 // Access metrics without side effects
 stats := val.Stats()
@@ -163,6 +168,29 @@ fmt.Printf("Updates: %d, Current: %d, Transforms: %d\n",
     stats.TransformCount,
 )
 ```
+
+**Important:** Configuration methods (AddTransform, EnableResetOnRead) panic if called after Start().
+
+### Multiple Values from Same Source
+
+Create independent values that receive the same source stream:
+
+```go
+src := source.NewRandomIntSource(clk, 1, 10)
+
+// Value A: Running total (never resets)
+valueA := value.New(src).
+    AddTransform(transform.NewAccumulate[int]()).
+    Start()
+
+// Value B: Delta counter (resets on each read)
+valueB := value.New(src).
+    AddTransform(transform.NewAccumulate[int]()).
+    EnableResetOnRead(0).
+    Start()
+```
+
+Both values maintain independent state while receiving the same random integers.
 
 ## Observability
 
@@ -210,6 +238,8 @@ val.SetUpdateHook(value.NewDefaultTraceHook[int]())
 
 - Generic type support
 - Thread-safe concurrent access
+- Explicit lifecycle management (construct → configure → start)
+- Atomic reset-on-read (no data loss)
 - Subscription-based value distribution
 - Composable transform pipeline
 - Observable update cycles via hooks
