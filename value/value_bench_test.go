@@ -143,7 +143,6 @@ func TestResetOnRead_Stress_RaceCondition(t *testing.T) {
 	defer resetOnRead.Stop()
 
 	clk.Start()
-	defer clk.Stop()
 
 	// Single reader - isolates the race condition
 	var exportSum atomic.Int64
@@ -168,17 +167,24 @@ func TestResetOnRead_Stress_RaceCondition(t *testing.T) {
 	}()
 
 	<-done
-	time.Sleep(50 * time.Millisecond)
+	clk.Stop()
 
-	finalAccumulated := accumulated.Value()
-	finalExportSum := int(exportSum.Load())
+	// Brief delay for value pipeline to settle
+	time.Sleep(10 * time.Millisecond)
 
-	if finalExportSum != finalAccumulated {
-		t.Errorf("RACE CONDITION DETECTED: export sum = %d, accumulated = %d, lost = %d",
-			finalExportSum, finalAccumulated, finalAccumulated-finalExportSum)
+	// Final read to capture any remaining accumulated value
+	finalRead := resetOnRead.Value()
+	exportSum.Add(int64(finalRead))
+
+	want := accumulated.Value()
+	got := int(exportSum.Load())
+
+	if got != want {
+		t.Errorf("Validation failed: got export sum = %d, want (accumulated) = %d, difference = %d",
+			got, want, want-got)
 	}
 
-	if finalAccumulated == 0 {
+	if want == 0 {
 		t.Error("Accumulated value is zero - clock/source not working")
 	}
 }
@@ -206,7 +212,6 @@ func TestResetOnRead_Stress_HighFrequencyConcurrent(t *testing.T) {
 	defer resetOnRead.Stop()
 
 	clk.Start()
-	defer clk.Stop()
 
 	// 5 concurrent readers, each reading 500 times
 	var exportSum atomic.Int64
@@ -214,7 +219,7 @@ func TestResetOnRead_Stress_HighFrequencyConcurrent(t *testing.T) {
 
 	for range 5 {
 		wg.Go(func() {
-			ticker := time.NewTicker(2 * time.Millisecond) // Faster than clock
+			ticker := time.NewTicker(2 * time.Millisecond)
 			defer ticker.Stop()
 
 			for range 500 {
@@ -226,17 +231,24 @@ func TestResetOnRead_Stress_HighFrequencyConcurrent(t *testing.T) {
 	}
 
 	wg.Wait()
-	time.Sleep(50 * time.Millisecond)
+	clk.Stop()
 
-	finalAccumulated := accumulated.Value()
-	finalExportSum := int(exportSum.Load())
+	// Brief delay for value pipeline to settle
+	time.Sleep(10 * time.Millisecond)
 
-	if finalExportSum != finalAccumulated {
-		t.Errorf("DATA LOSS under extreme stress: export sum = %d, accumulated = %d, lost = %d",
-			finalExportSum, finalAccumulated, finalAccumulated-finalExportSum)
+	// Final read to capture any remaining accumulated value
+	finalRead := resetOnRead.Value()
+	exportSum.Add(int64(finalRead))
+
+	want := accumulated.Value()
+	got := int(exportSum.Load())
+
+	if got != want {
+		t.Errorf("Validation failed under extreme stress: got export sum = %d, want (accumulated) = %d, difference = %d",
+			got, want, want-got)
 	}
 
-	if finalAccumulated == 0 {
+	if want == 0 {
 		t.Error("Accumulated value is zero - clock/source not working")
 	}
 }
@@ -264,7 +276,6 @@ func TestResetOnRead_Stress_BurstPattern(t *testing.T) {
 	defer resetOnRead.Stop()
 
 	clk.Start()
-	defer clk.Stop()
 
 	var exportSum atomic.Int64
 	var wg sync.WaitGroup
@@ -284,17 +295,24 @@ func TestResetOnRead_Stress_BurstPattern(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	time.Sleep(50 * time.Millisecond)
+	clk.Stop()
 
-	finalAccumulated := accumulated.Value()
-	finalExportSum := int(exportSum.Load())
+	// Brief delay for value pipeline to settle
+	time.Sleep(10 * time.Millisecond)
 
-	if finalExportSum != finalAccumulated {
-		t.Errorf("DATA LOSS during burst pattern: export sum = %d, accumulated = %d, lost = %d",
-			finalExportSum, finalAccumulated, finalAccumulated-finalExportSum)
+	// Final read to capture any remaining accumulated value
+	finalRead := resetOnRead.Value()
+	exportSum.Add(int64(finalRead))
+
+	want := accumulated.Value()
+	got := int(exportSum.Load())
+
+	if got != want {
+		t.Errorf("Validation failed during burst pattern: got export sum = %d, want (accumulated) = %d, difference = %d",
+			got, want, want-got)
 	}
 
-	if finalAccumulated == 0 {
+	if want == 0 {
 		t.Error("Accumulated value is zero - clock/source not working")
 	}
 }
