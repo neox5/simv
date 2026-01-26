@@ -39,8 +39,11 @@ import (
 )
 
 func main() {
-    // Optional: Initialize seed for repeatable simulations
+    // Initialize seed (required)
+    // Use explicit seed for repeatable simulations:
     seed.Init(12345)
+    // Or use time-based seed for non-repeatable behavior:
+    // seed.Init(uint64(time.Now().UnixNano()))
 
     // Create clock that ticks every 100ms
     clk := clock.NewPeriodicClock(100 * time.Millisecond)
@@ -92,12 +95,16 @@ simV uses a pipeline architecture:
 
 Control repeatability of random value generation.
 
+````go
+### Seed
+
+Control repeatability of random value generation. Must be called before creating any sources.
 ```go
 // Repeatable simulations - same seed produces identical sequences
 seed.Init(12345)
 
-// Non-repeatable (default) - auto-initializes with time-based seed
-// No need to call Init if repeatability is not required
+// Non-repeatable behavior - use time-based seed
+seed.Init(uint64(time.Now().UnixNano()))
 ```
 
 ### Clock
@@ -254,3 +261,4 @@ See `cmd/example/main.go` for complete working example.
 ## License
 
 MIT License - see LICENSE file for details.
+````

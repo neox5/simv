@@ -1,0 +1,64 @@
+# Release v0.5.0
+
+This release improves seed initialization with an explicit, mandatory contract that eliminates timing bugs and clarifies initialization requirements.
+
+## Breaking Changes
+
+**Seed Package:**
+
+- `seed.Init()` is now **required** - must be called before creating any sources
+- Removed auto-initialization behavior - no more implicit time-based seed fallback
+- `seed.Init()` now panics if called multiple times
+- `seed.NewRand()` and `seed.Current()` panic if called before `seed.Init()`
+- `seed.Current()` signature changed: returns `(masterSeed, streamCounter uint64)` instead of `(masterSeed, streamCounter uint64, autoInitialized bool)`
+
+## Migration Guide
+
+All simv users must explicitly initialize the seed registry at program start:
+```go
+import (
+    "time"
+    "github.com/neox5/simv/seed"
+)
+
+func main() {
+    // For repeatable simulations:
+    seed.Init(12345)
+    
+    // OR for non-repeatable behavior:
+    // seed.Init(uint64(time.Now().UnixNano()))
+    
+    // Now create clocks, sources, values...
+}
+```
+
+**Before (v0.4.0):**
+```go
+// seed.Init() was optional - auto-initialized on first use
+src := source.NewRandomIntSource(clk, 1, 10)
+```
+
+**After (v0.5.0):**
+```go
+// seed.Init() is mandatory
+seed.Init(uint64(time.Now().UnixNano()))
+src := source.NewRandomIntSource(clk, 1, 10)
+```
+
+## Rationale
+
+The previous auto-initialization behavior created:
+- Unclear initialization contracts (when is seed set?)
+- Timing dependencies (initialization as side effect)
+- Ambiguous state queries (was it auto-initialized or explicit?)
+
+The new mandatory initialization:
+- Establishes clear contract: Init must be called first
+- Eliminates timing ambiguity
+- Provides fail-fast behavior with clear error messages
+- Follows Go precedent (similar to `flag.Parse()`, foundational setup)
+
+## Installation
+```bash
+go get github.com/neox5/simv@v0.5.0
+```

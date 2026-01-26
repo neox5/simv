@@ -3,7 +3,6 @@ package seed
 import (
 	"math/rand/v2"
 	"sync"
-	"time"
 )
 
 var (
@@ -16,54 +15,62 @@ type registry struct {
 	mu         sync.Mutex
 	masterSeed uint64
 	nextStream uint64
-	autoInit   bool
 }
 
-// Init initializes the global registry with a master seed for repeatable simulations.
-// If not called, the registry auto-initializes with a time-based seed on first use.
+// Init initializes the global seed registry with a master seed.
+// MUST be called before any simv sources are created.
+// Panics if called multiple times.
+//
+// For deterministic simulations, provide an explicit seed:
+//
+//	seed.Init(12345)
+//
+// For non-repeatable behavior, use a time-based seed:
+//
+//	seed.Init(uint64(time.Now().UnixNano()))
 func Init(masterSeed uint64) {
+	initialized := false
 	registryOnce.Do(func() {
 		globalRegistry = &registry{
 			masterSeed: masterSeed,
 			nextStream: 0,
-			autoInit:   false,
 		}
+		initialized = true
 	})
+
+	if !initialized {
+		panic("seed.Init called multiple times")
+	}
 }
 
 // NewRand returns a new independent random number generator.
 // Each call returns an RNG with seeds (masterSeed, streamN) where N increments.
-// Auto-initializes with time-based seed if Init was not called.
+// Panics if Init() was not called.
 func NewRand() *rand.Rand {
-	registryOnce.Do(func() {
-		now := uint64(time.Now().UnixNano())
-		globalRegistry = &registry{
-			masterSeed: now,
-			nextStream: 0,
-			autoInit:   true,
-		}
-	})
-
+	if globalRegistry == nil {
+		panic("seed.NewRand called before seed.Init - call seed.Init() at program start")
+	}
 	return globalRegistry.newRand()
 }
 
 // Current returns the active seed state for logging and reproducibility.
-// Returns (masterSeed, streamCounter, autoInitialized) where:
-// - masterSeed: The seed value (from Init() or time-based if auto-initialized)
+// Returns (masterSeed, streamCounter) where:
+// - masterSeed: The seed value provided to Init()
 // - streamCounter: Current stream counter (number of NewRand() calls made)
-// - autoInitialized: true if Init() was never called (time-based seed)
+//
+// Panics if Init() was not called.
 //
 // For reproducibility, call Init(masterSeed) before creating any sources.
 // Each source will receive RNGs with seeds (masterSeed, 0), (masterSeed, 1), etc.
-func Current() (masterSeed, streamCounter uint64, autoInitialized bool) {
+func Current() (masterSeed, streamCounter uint64) {
 	if globalRegistry == nil {
-		return 0, 0, false
+		panic("seed.Current called before seed.Init - call seed.Init() at program start")
 	}
 
 	globalRegistry.mu.Lock()
 	defer globalRegistry.mu.Unlock()
 
-	return globalRegistry.masterSeed, globalRegistry.nextStream, globalRegistry.autoInit
+	return globalRegistry.masterSeed, globalRegistry.nextStream
 }
 
 func (r *registry) newRand() *rand.Rand {
